@@ -83,7 +83,7 @@ bitmap load(const std::string& filename) {  //TODO: string filename
   int rgba_vals = 4; // r, g, b, a
 
   FILE *fp;
-  fp = fopen("saved_file.txt", "r+");
+  fp = fopen(filename.c_str(), "r+"); // .c_str() turns std::str into c style char*
 
   fclose(fp);
 
@@ -101,7 +101,8 @@ bool save(bitmap &bmp, const std::string& filename) {  // TODO: Why signature li
   //printf("%d", bmp.data[0][0][0]); // TODO: WHYNOT
 
   FILE *fp;
-  fp = fopen("my_file.txt", "w+"); // TODO: use filename
+  fp = fopen(filename.c_str(), "w+"); // .c_str() turns std::str into c style char*
+
 
   // Write all values 
   for(int rgba = 0; rgba < rgba_vals; rgba++) {
@@ -206,11 +207,12 @@ int main(int argc, char** argv) {
   // instantiate a copy of the image object type
   image img;
   bitmap my_bmp = create(5, 3);
-  my_bmp = clear(my_bmp, 30, 64, 20, 18);
   ////my_bmp = horizontal_flip(my_bmp);
   //my_bmp = vertical_flip(my_bmp);
   bool is_saved = save(my_bmp, "saved_file.txt"); 
-  bitmap loaded_bmp = load("to_load.txt");
+  bitmap loaded_bmp = load("saved_file.txt");
+  loaded_bmp = clear(loaded_bmp, 30, 64, 20, 18);
+  bool is_saved2 = save(loaded_bmp, "saved_file2.txt"); 
 
 
   return 0;
