@@ -8,7 +8,6 @@
 // channels. The canvas size of the image will dictate the exact size of the 
 // other two dimensions
 
-//uint8_t*** data; data[rgba][x][y]
 
 class bitmap{
   public:
@@ -68,8 +67,9 @@ class bitmap{
 //and opaque implies an RGBA value of (0,0,0,0). Returns true if the bitmap was 
 //created and false if the creation fails (eg, due to memory allocation failure).
 bitmap create(uint32_t width, uint32_t height) {
-    bitmap bmp(width, height); // Call constructor
-    int rgba_vals = 4; // r, g, b, a
+  printf("Inside create\n");
+  bitmap bmp(width, height); // Call constructor
+  int rgba_vals = 4; // r, g, b, a
 
 
   // TODO: Bool based on memory allocation failure and stuff
@@ -80,6 +80,7 @@ bitmap create(uint32_t width, uint32_t height) {
 // (6) loads a bitmap into the object. Returns true if the bitmap was
 //  successfully loaded and false otherwise.
 bitmap load(const std::string& filename) { 
+  printf("Inside load()\n");
   int rgba_vals = 4; // r, g, b, a
 
   FILE *fp;
@@ -113,8 +114,7 @@ bitmap load(const std::string& filename) {
   bitmap bmp = create(h, w);
 
   // Test read the buffer
-/*
-  rewind(fp);
+/*  rewind(fp);
   char buffer[512];
   fread(buffer, 512, 1, fp);
   printf("%s", buffer);
@@ -123,12 +123,15 @@ bitmap load(const std::string& filename) {
   rewind(fp);
   char str[65536]; //TODO: Will need eed megabytes / gigabytes, right? 
 
+
     for(int rgba = 0; rgba < rgba_vals; rgba++) {
       for(int x = 0; x < h; x++) { // TODO: Why is height on outside, width on inside
         for(int y = 0; y < w; y++) {
 
           fscanf(fp, "%s", str);
           float val = atof(str); //Convert char* to float
+          bmp.data[rgba][x][y] = val;  // Assign RGBA values 
+
         }
         printf("\n");
       }
@@ -136,12 +139,14 @@ bitmap load(const std::string& filename) {
   fclose(fp);
 
   return bmp;
+
 }
 
 
 // (7) saves the bitmap into a bitmap file. Returns true if the bitmap was
 //  successfully written to disk and false otherwise.
 bool save(bitmap &bmp, const std::string& filename) {  // TODO: Why signature like this?
+  printf("Inside save\n");
   int rgba_vals = 4; // r, g, b, a
   //printf("%d", bmp.data[0][0][0]); // TODO: WHYNOT
 
@@ -164,7 +169,8 @@ bool save(bitmap &bmp, const std::string& filename) {  // TODO: Why signature li
 
 
 // (8) clears every pixel in the bitmap image to the given color.
- bitmap clear(bitmap &bmp, uint8_t r , uint8_t g, uint8_t b, uint8_t a) {
+bitmap clear(bitmap &bmp, uint8_t r , uint8_t g, uint8_t b, uint8_t a) {
+  printf("Inside clear\n");
 
   // Store the rgba parameters in an array in same order as that in bitmap data
   uint8_t rgba_array[4];
@@ -189,18 +195,27 @@ bool save(bitmap &bmp, const std::string& filename) {  // TODO: Why signature li
 // (9) flips the image horizontally, identical to the corresponding Photoshop 
 // operation.
 bitmap horizontal_flip(bitmap &bmp) { 
+  printf("Inside horizontal_flip()\n");
+
   uint8_t temp; // rgba value
   int rgba_vals = 4;
   uint32_t w = bmp.width;
   uint32_t h = bmp.height;
+  int y_cap; // halfway mark; stopping point for why in inner for loop
+  if(h % 2) { // height is odd
+    y_cap = (h + 1) / 2;
+  }
+  else { // height is even
+    y_cap = h / 2;
+  }
 
   // Assign all values 
   for(int rgba = 0; rgba < rgba_vals; rgba++) {
-    for(int x = 0; x < w/2; x++) {
-      for(int y = 0; y < h; y++) {
-        bmp.data[rgba][x][y] = temp; 
-        bmp.data[rgba][x][y] = bmp.data[rgba][w-x][y];  
-        bmp.data[rgba][w-x][y] = temp;
+    for(int x = 0; x < w; x++) {
+      for(int y = 0; y < y_cap; y++) {
+        temp = bmp.data[rgba][x][y];
+        bmp.data[rgba][x][y] = bmp.data[rgba][x][h-1-y]; // h-1 because  offset 
+        bmp.data[rgba][x][h-1-y] = temp;
       }
     }
   } 
@@ -210,34 +225,32 @@ bitmap horizontal_flip(bitmap &bmp) {
 // (10) flips the image vertically, identical to the corresponding Photoshop 
 // operation.
 bitmap vertical_flip(bitmap &bmp) {
+  printf("Inside vertical_flip()\n");
+
   uint8_t temp; // rgba value
   int rgba_vals = 4;
   uint32_t h = bmp.height;
   uint32_t w = bmp.width;
-  int y_cap; // halfway mark; stopping point for why in inner for loop
-  if(h % 2) { // height is odd
-    y_cap = (h + 1) / 2;
+  int x_cap; // halfway mark; stopping point for why in inner for loop
+  if(w % 2) { // height is odd
+    x_cap = (w + 1) / 2;
   }
   else { // height is even
-    y_cap = h / 2;
+    x_cap = w / 2;
   }
-
 
   // Assign all values 
   for(int rgba = 0; rgba < rgba_vals; rgba++) {
-    for(int x = 0; x < w; x++) {
-      for(int y = 0; y < y_cap; y++) {
+    for(int x = 0; x < x_cap; x++) {
+      for(int y = 0; y < w; y++) {
         temp = bmp.data[rgba][x][y];
-        printf("%d\n", temp);
-        bmp.data[rgba][x][y] = bmp.data[rgba][x][h-y];  // TODO: y-h or h-w
-        bmp.data[rgba][x][h-y] = temp;
+        bmp.data[rgba][x][y] = bmp.data[rgba][w-1-x][y]; // w-1 
+        bmp.data[rgba][w-1-x][y] = temp;
       }
     }
   } 
   return bmp;
-
 }
-
 
 // (11)  performs a blur on the image. For each pixel p in the original image,
 //  its new RGBA value should be the average of the 9 pixels centered on p (ie,
@@ -259,10 +272,11 @@ int main(int argc, char** argv) {
 
   // instantiate a copy of the image object type
   image img;
-  bitmap my_bmp = create(5, 3);
+  //bitmap my_bmp = create(5, 3);
   //my_bmp = horizontal_flip(my_bmp);
-  //my_bmp = vertical_flip(my_bmp);
   bitmap loaded_bmp = load("to_load.txt");
+  loaded_bmp = vertical_flip(loaded_bmp);
+  //loaded_bmp = horizontal_flip(loaded_bmp);
   //my_bmp = clear(my_bmp, 30, 64, 20, 18);
   //bitmap loaded_bmp = vertical_flip(my_bmp);
   save(loaded_bmp, "saved_file.txt"); 
@@ -273,5 +287,5 @@ int main(int argc, char** argv) {
 
 //TODO: Why won't it print line 88 WHYNOT
 //TODO: Seg faults for horizontal and vertical flips
-//TODO: Get it to save values in save:w
+//TODO: Get it to save values in save
 
