@@ -79,18 +79,63 @@ bitmap create(uint32_t width, uint32_t height) {
 
 // (6) loads a bitmap into the object. Returns true if the bitmap was
 //  successfully loaded and false otherwise.
-bitmap load(const std::string& filename) {  //TODO: string filename
+bitmap load(const std::string& filename) { 
   int rgba_vals = 4; // r, g, b, a
 
   FILE *fp;
   fp = fopen(filename.c_str(), "r+"); // .c_str() turns std::str into c style char*
 
+  // Get dimensions to know how big to create image
+  // TODO: pull dimensions from metadata instead
+  // First get number of rows
+  int row_count = 0;
+  int c; // To store a character read from the file. Has to be int for EOF
+  while((c = fgetc(fp)) != EOF) {
+    if(c == '\n') {  // Check if new line
+      row_count++;
+    }
+  }
+  printf("Finished with rows\n");
+
+  // Now get number of columns
+  int col_count;
+  rewind(fp); //Reset fp to beginning
+  while((c = fgetc(fp)) != '\n') {
+    if(c == ' ') {
+      col_count++;
+    }
+  }
+  printf("Finished with cols\n");
+  uint32_t h = row_count / rgba_vals;
+  uint32_t w = col_count;
+
+  // Create bitmap
+  bitmap bmp = create(h, w);
+
+  // Test read the buffer
+/*
+  rewind(fp);
+  char buffer[512];
+  fread(buffer, 512, 1, fp);
+  printf("%s", buffer);
+*/
+  // Populate bitmap
+  rewind(fp);
+  char str[65536]; //TODO: Will need eed megabytes / gigabytes, right? 
+
+    for(int rgba = 0; rgba < rgba_vals; rgba++) {
+      for(int x = 0; x < h; x++) { // TODO: Why is height on outside, width on inside
+        for(int y = 0; y < w; y++) {
+
+          fscanf(fp, "%s", str);
+          float val = atof(str); //Convert char* to float
+        }
+        printf("\n");
+      }
+    }
   fclose(fp);
 
-  //TODO: return bitmap. Also change function signature
-  bitmap my_bmp = create(5, 3);
-  return my_bmp;
-
+  return bmp;
 }
 
 
@@ -154,7 +199,7 @@ bitmap horizontal_flip(bitmap &bmp) {
     for(int x = 0; x < w/2; x++) {
       for(int y = 0; y < h; y++) {
         bmp.data[rgba][x][y] = temp; 
-        bmp.data[rgba][x][y] = bmp.data[rgba][x-w][y];  // TODO: x-w or w-x
+        bmp.data[rgba][x][y] = bmp.data[rgba][w-x][y];  
         bmp.data[rgba][w-x][y] = temp;
       }
     }
@@ -169,14 +214,22 @@ bitmap vertical_flip(bitmap &bmp) {
   int rgba_vals = 4;
   uint32_t h = bmp.height;
   uint32_t w = bmp.width;
+  int y_cap; // halfway mark; stopping point for why in inner for loop
+  if(h % 2) { // height is odd
+    y_cap = (h + 1) / 2;
+  }
+  else { // height is even
+    y_cap = h / 2;
+  }
 
 
   // Assign all values 
   for(int rgba = 0; rgba < rgba_vals; rgba++) {
     for(int x = 0; x < w; x++) {
-      for(int y = 0; y < h/2; y++) {
-        bmp.data[rgba][x][y] = temp; 
-        bmp.data[rgba][x][y] = bmp.data[rgba][x][y-h];  // TODO: y-h or h-w
+      for(int y = 0; y < y_cap; y++) {
+        temp = bmp.data[rgba][x][y];
+        printf("%d\n", temp);
+        bmp.data[rgba][x][y] = bmp.data[rgba][x][h-y];  // TODO: y-h or h-w
         bmp.data[rgba][x][h-y] = temp;
       }
     }
@@ -207,13 +260,12 @@ int main(int argc, char** argv) {
   // instantiate a copy of the image object type
   image img;
   bitmap my_bmp = create(5, 3);
-  ////my_bmp = horizontal_flip(my_bmp);
+  //my_bmp = horizontal_flip(my_bmp);
   //my_bmp = vertical_flip(my_bmp);
-  bool is_saved = save(my_bmp, "saved_file.txt"); 
-  bitmap loaded_bmp = load("saved_file.txt");
-  loaded_bmp = clear(loaded_bmp, 30, 64, 20, 18);
-  bool is_saved2 = save(loaded_bmp, "saved_file2.txt"); 
-
+  bitmap loaded_bmp = load("to_load.txt");
+  //my_bmp = clear(my_bmp, 30, 64, 20, 18);
+  //bitmap loaded_bmp = vertical_flip(my_bmp);
+  save(loaded_bmp, "saved_file.txt"); 
 
   return 0;
 }
