@@ -1,6 +1,7 @@
 #include "image.h"
 #include <string>
 #include <stdlib.h> // malloc
+#include <stdio.h> // fprintf
 
 // Triple index array. The respective indices are for the specific RGBA channel,
 // row and column. These bitmaps are all 32 bit RGBA, and will thus have 4 
@@ -39,6 +40,7 @@ class bitmap{
   // Malloc each of the nested channels and save as rgba for xy
   data  = (uint8_t***) malloc(sizeof(uint8_t***) * 4);
   for(int rgba = 0; rgba < rgba_vals; rgba++) {
+
     data[rgba] = (uint8_t**) malloc(sizeof(uint8_t**) * width ); // TODO: Draw and confirm
     for(int x = 0; x < width; x++) {
       data[rgba][x] = (uint8_t*) malloc(sizeof(uint8_t*) * height);
@@ -65,7 +67,7 @@ class bitmap{
 // (5) creates an empty (ie, completely black and opaque) image. Note that black 
 //and opaque implies an RGBA value of (0,0,0,0). Returns true if the bitmap was 
 //created and false if the creation fails (eg, due to memory allocation failure).
- bitmap create(uint32_t width, uint32_t height) {
+bitmap create(uint32_t width, uint32_t height) {
     bitmap bmp(width, height); // Call constructor
     int rgba_vals = 4; // r, g, b, a
 
@@ -77,11 +79,43 @@ class bitmap{
 
 // (6) loads a bitmap into the object. Returns true if the bitmap was
 //  successfully loaded and false otherwise.
-// bool load(const std::string& filename) { }
+bitmap load(const std::string& filename) {  //TODO: string filename
+  int rgba_vals = 4; // r, g, b, a
+
+  FILE *fp;
+  fp = fopen("saved_file.txt", "r+");
+
+  fclose(fp);
+
+  //TODO: return bitmap. Also change function signature
+  bitmap my_bmp = create(5, 3);
+  return my_bmp;
+
+}
+
 
 // (7) saves the bitmap into a bitmap file. Returns true if the bitmap was
 //  successfully written to disk and false otherwise.
-// bool save(const std::string& filename) { }
+bool save(bitmap &bmp, const std::string& filename) {  // TODO: Why signature like this?
+  int rgba_vals = 4; // r, g, b, a
+  //printf("%d", bmp.data[0][0][0]); // TODO: WHYNOT
+
+  FILE *fp;
+  fp = fopen("my_file.txt", "w+"); // TODO: use filename
+
+  // Write all values 
+  for(int rgba = 0; rgba < rgba_vals; rgba++) {
+    for(int x = 0; x < bmp.width; x++) {
+      for(int y = 0; y < bmp.height; y++) {
+        fprintf(fp, "%d ", bmp.data[rgba][x][y]);
+      }
+    fprintf(fp, "\n"); // TODO:  New line at end of row
+    }
+  } 
+  fclose(fp);
+  return true; // TODO: Have this actually reflect success
+}
+
 
 // (8) clears every pixel in the bitmap image to the given color.
  bitmap clear(bitmap &bmp, uint8_t r , uint8_t g, uint8_t b, uint8_t a) {
@@ -108,7 +142,7 @@ class bitmap{
 
 // (9) flips the image horizontally, identical to the corresponding Photoshop 
 // operation.
-bitmap horizontal_flip(bitmap bmp) { 
+bitmap horizontal_flip(bitmap &bmp) { 
   uint8_t temp; // rgba value
   int rgba_vals = 4;
   uint32_t w = bmp.width;
@@ -129,10 +163,11 @@ bitmap horizontal_flip(bitmap bmp) {
 
 // (10) flips the image vertically, identical to the corresponding Photoshop 
 // operation.
-bitmap vertical_flip(bitmap bmp) {
+bitmap vertical_flip(bitmap &bmp) {
   uint8_t temp; // rgba value
   int rgba_vals = 4;
   uint32_t h = bmp.height;
+  uint32_t w = bmp.width;
 
 
   // Assign all values 
@@ -141,7 +176,7 @@ bitmap vertical_flip(bitmap bmp) {
       for(int y = 0; y < h/2; y++) {
         bmp.data[rgba][x][y] = temp; 
         bmp.data[rgba][x][y] = bmp.data[rgba][x][y-h];  // TODO: y-h or h-w
-        bmp.data[w-rgba][x][h-y] = temp;
+        bmp.data[rgba][x][h-y] = temp;
       }
     }
   } 
@@ -170,11 +205,19 @@ int main(int argc, char** argv) {
 
   // instantiate a copy of the image object type
   image img;
-  bitmap my_bmp = create(4, 5);
+  bitmap my_bmp = create(5, 3);
   my_bmp = clear(my_bmp, 30, 64, 20, 18);
-  my_bmp = horizontal_flip(my_bmp);
-  my_bmp = vertical_flip(my_bmp);
+  ////my_bmp = horizontal_flip(my_bmp);
+  //my_bmp = vertical_flip(my_bmp);
+  bool is_saved = save(my_bmp, "saved_file.txt"); 
+  bitmap loaded_bmp = load("to_load.txt");
 
 
   return 0;
 }
+
+
+//TODO: Why won't it print line 88 WHYNOT
+//TODO: Seg faults for horizontal and vertical flips
+//TODO: Get it to save values in save:w
+
