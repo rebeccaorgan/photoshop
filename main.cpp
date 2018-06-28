@@ -8,6 +8,7 @@
 // channels. The canvas size of the image will dictate the exact size of the 
 // other two dimensions
 
+int rgba_vals = 4; // TODO: Okay to have global?
 
 class bitmap{
   public:
@@ -21,16 +22,12 @@ class bitmap{
     uint32_t height;
 
   private:
-    
 };
 
 // (1)  default constructor, creates a 1x1 image which is completely black and 
 // opaque. Note that black and opaque implies an RGBA value of (0,0,0,0)
  bitmap::bitmap(uint32_t w, uint32_t h) {
-  int n = 1; // Image size set to 1
-  //uint32_t width = 1;
-  //uint32_t height = 1;
-  int rgba_vals = 4; // r, g, b, a
+  printf("Inside default constructor\n");
 
   // Saving dimensions as data members in the class
   width = w; 
@@ -38,29 +35,59 @@ class bitmap{
 
   // Malloc each of the nested channels and save as rgba for xy
   data  = (uint8_t***) malloc(sizeof(uint8_t***) * 4);
-  for(int rgba = 0; rgba < rgba_vals; rgba++) {
 
+  for(int rgba = 0; rgba < rgba_vals; rgba++) {
     data[rgba] = (uint8_t**) malloc(sizeof(uint8_t**) * width ); // TODO: Draw and confirm
+
     for(int x = 0; x < width; x++) {
       data[rgba][x] = (uint8_t*) malloc(sizeof(uint8_t*) * height);
+
       for(int y = 0; y < height; y++) { 
         //data[rgba][x][y] = (uint8_t) malloc(sizeof(uint8_t));
         data[rgba][x][y] = 0;  // Assign RGBA values to zero
+
       }
     }
   } 
-  
  }
 
-
 // (2) copy constructor.
- bitmap::bitmap(const bitmap& other) { }
+// Deep copy. 
+// Want "this" to be identical to other
+bitmap::bitmap(const bitmap& other) {  // No dimensions because other is already created 
+  printf("Inside copy constructor\n");
+
+  width = other.width;
+  height = other.height;
+
+  // Malloc each of the nested channels and save as rgba for xy
+  data  = (uint8_t***) malloc(sizeof(uint8_t***) * 4);
+  
+  for(int rgba = 0; rgba < rgba_vals; rgba++) {
+    data[rgba] = (uint8_t**) malloc(sizeof(uint8_t**) * width ); // TODO: Draw and confirm
+
+    for(int x = 0; x < width; x++) {
+      data[rgba][x] = (uint8_t*) malloc(sizeof(uint8_t*) * height);
+    
+      for(int y = 0; y < height; y++) { 
+        //data[rgba][x][y] = (uint8_t) malloc(sizeof(uint8_t));
+        data[rgba][x][y] = other.data[rgba][x][y];  // Assign RGBA values to zero
+      }
+    }
+  }
+}
 
 // (3) assignment operator
- bitmap& bitmap::operator=(const bitmap& other) { }
+bitmap& bitmap::operator=(const bitmap& other) { 
+  printf("Inside assignment operator\n");
+
+}
+
 
 // (4) destructor
- bitmap::~bitmap() { }
+bitmap::~bitmap() { 
+  printf("Inside destructor\n");
+}
 //TODO: This and others?
 
 // (5) creates an empty (ie, completely black and opaque) image. Note that black 
@@ -69,19 +96,15 @@ class bitmap{
 bitmap create(uint32_t width, uint32_t height) {
   printf("Inside create\n");
   bitmap bmp(width, height); // Call constructor
-  int rgba_vals = 4; // r, g, b, a
-
 
   // TODO: Bool based on memory allocation failure and stuff
   return bmp;
-
  }
 
 // (6) loads a bitmap into the object. Returns true if the bitmap was
 //  successfully loaded and false otherwise.
 bitmap load(const std::string& filename) { 
   printf("Inside load()\n");
-  int rgba_vals = 4; // r, g, b, a
 
   FILE *fp;
   fp = fopen(filename.c_str(), "r+"); // .c_str() turns std::str into c style char*
@@ -123,7 +146,6 @@ bitmap load(const std::string& filename) {
   rewind(fp);
   char str[65536]; //TODO: Will need eed megabytes / gigabytes, right? 
 
-
     for(int rgba = 0; rgba < rgba_vals; rgba++) {
       for(int x = 0; x < h; x++) { // TODO: Why is height on outside, width on inside
         for(int y = 0; y < w; y++) {
@@ -133,21 +155,17 @@ bitmap load(const std::string& filename) {
           bmp.data[rgba][x][y] = val;  // Assign RGBA values 
 
         }
-        printf("\n");
       }
     }
   fclose(fp);
-
   return bmp;
 
 }
-
 
 // (7) saves the bitmap into a bitmap file. Returns true if the bitmap was
 //  successfully written to disk and false otherwise.
 bool save(bitmap &bmp, const std::string& filename) {  // TODO: Why signature like this?
   printf("Inside save\n");
-  int rgba_vals = 4; // r, g, b, a
   //printf("%d", bmp.data[0][0][0]); // TODO: WHYNOT
 
   FILE *fp;
@@ -181,7 +199,7 @@ bitmap clear(bitmap &bmp, uint8_t r , uint8_t g, uint8_t b, uint8_t a) {
 
   
   // Assign all values 
-  for(int rgba = 0; rgba < sizeof(rgba_array); rgba++) {
+  for(int rgba = 0; rgba < rgba_vals; rgba++) {
     for(int x = 0; x < bmp.width; x++) {
       for(int y = 0; y < bmp.height; y++) {
         bmp.data[rgba][x][y] = rgba_array[rgba];
@@ -198,7 +216,6 @@ bitmap horizontal_flip(bitmap &bmp) {
   printf("Inside horizontal_flip()\n");
 
   uint8_t temp; // rgba value
-  int rgba_vals = 4;
   uint32_t w = bmp.width;
   uint32_t h = bmp.height;
   int y_cap; // halfway mark; stopping point for why in inner for loop
@@ -228,7 +245,6 @@ bitmap vertical_flip(bitmap &bmp) {
   printf("Inside vertical_flip()\n");
 
   uint8_t temp; // rgba value
-  int rgba_vals = 4;
   uint32_t h = bmp.height;
   uint32_t w = bmp.width;
   int x_cap; // halfway mark; stopping point for why in inner for loop
@@ -258,34 +274,146 @@ bitmap vertical_flip(bitmap &bmp) {
 //  bottom left, bottom middle and bottom right). You probably cannot operate 
 //in-situ on the current image and you'll need to create a new temporary image 
 //to write to.
-// void blur() { }
+bitmap blur(bitmap &bmp) { 
+  printf("Inside blur\n");
+
+  uint32_t h = bmp.height;
+  uint32_t w = bmp.width;
+  uint8_t neighbor_pixel;
+  //TODO: Just have temp_bmp and have new values go over to that one. Deep copy
+  // it over at end to bmp that gets returned
+  bitmap temp_bmp = create(w, h); // Temp image upon which to write
+  temp_bmp = bmp; // To get initial edges  // TODO: Remove later
+  // TODO: Borders
+
+  // All but borders
+  for(int rgba = 0; rgba < rgba_vals; rgba++) {
+    for(int x = 1; x < w - 1; x++) { // TODO: confirm -1 
+      for(int y = 1; y < h - 1; y++) {
+
+        neighbor_pixel = bmp.data[rgba][x-1][y+1] + bmp.data[rgba][x][y+1] +
+               bmp.data[rgba][x+1][y+1] + bmp.data[rgba][x-1][y] +
+               bmp.data[rgba][x][y] + bmp.data[rgba][x][y+1] + 
+               bmp.data[rgba][x-1][y-1] + bmp.data[rgba][x][y-1] +
+               bmp.data[rgba][x-1][y-1];
+        temp_bmp.data[rgba][x][y] = neighbor_pixel / 9;
+      }
+    }
+  }
+  //printf("%d", temp_bmp.data[0][3][3]);
+
+  bmp = temp_bmp; // Deep copy using copy constructor
+  // TODO: clear memory of temp_bmp
+  //TODO: return bmp, not temp_bmp
+  return bmp; 
+}
+
+bitmap blur2(bitmap &blur_bmp) { 
+  printf("Inside blur\n");
+
+  uint32_t h = blur_bmp.height;
+  uint32_t w = blur_bmp.width;
+  uint8_t neighbor_sum;
+  //TODO: Just have temp_bmp and have new values go over to that one. Deep copy
+  // it over at end to bmp that gets returned
+  bitmap temp_bmp = create(w, h); // Temp image upon which to write
+  temp_bmp = blur_bmp; // To get initial edges  // TODO: Remove later
+  //printf("%d", temp_bmp.data[0][3][3]);
+  // TODO: Borders
+
+  // All but borders
+  for(int rgba = 0; rgba < rgba_vals; rgba++) {
+    for(int x = 1; x < w - 1; x++) { // TODO: confirm -1 
+      for(int y = 1; y < h - 1; y++) {
+
+//        printf("%d\n", temp_bmp.data[rgba][x][y]);
+        neighbor_sum = temp_bmp.data[rgba][x-1][y+1] + temp_bmp.data[rgba][x][y+1] +
+               temp_bmp.data[rgba][x+1][y+1] + temp_bmp.data[rgba][x-1][y] +
+               temp_bmp.data[rgba][x][y] + temp_bmp.data[rgba][x][y+1] + 
+               temp_bmp.data[rgba][x-1][y-1] + temp_bmp.data[rgba][x][y-1] +
+               temp_bmp.data[rgba][x-1][y-1];
+//        printf("%d\n", neighbor_sum);
+        blur_bmp.data[rgba][x][y] = neighbor_sum / 9;
+      }
+    }
+  }
+
+  // TODO: clear memory of temp_bmp
+  //TODO: return bmp, not temp_bmp
+  return blur_bmp; 
+}
+
 
 // (12; bonus) blends a given image with the current image at the specified 
 // transparency level. For simplicity, you can assume the two input images will
 //  have the same height and width. You'll need to perform some calculations to
 //  determine the final color at each pixel position.
-// void blend(const bitmap& other, uint8_t transparency) { }
+bitmap blend(const bitmap &orig_bmp, const bitmap& other_bmp, uint8_t transparency) { 
+  printf("Inside blend");
+
+  //TODO: Check the two are same dimensions
+  uint32_t h = orig_bmp.height;
+  uint32_t w = orig_bmp.width;
+  uint8_t percentage = transparency / 256;
+
+  bitmap blend_bmp = create(w, h);  
+
+  for(int rgba = 0; rgba < rgba_vals; rgba++) {
+    for(int x = 0; x < w; x++) {
+      for(int y = 0; y < h; y++) {
+        blend_bmp.data[rgba][x][y] = (orig_bmp.data[rgba][x][y]*percentage) + 
+                                (other_bmp.data[rgba][x][y]*(100-percentage));
+      }
+    }
+  }
+  
+  return blend_bmp;
+}
+
+// (13) prints out the matrix values of an image
+void print(bitmap &bmp) { 
+  printf("Inside print\n");
+  
+  uint32_t h = bmp.height;
+  uint32_t w = bmp.width;
+
+  for(int rgba = 0; rgba < rgba_vals; rgba++) {
+    for(int x = 0; x < w; x++) { 
+      for(int y = 0; y < h; y++) {
+        printf("%d ", bmp.data[rgba][x][y]);
+      }
+      printf("\n");
+    }
+  }
+}
 
 
 // executive entrypoint
 int main(int argc, char** argv) {
 
   // instantiate a copy of the image object type
-  image img;
-  //bitmap my_bmp = create(5, 3);
-  //my_bmp = horizontal_flip(my_bmp);
+  //image img;
+  bitmap my_bmp = create(5, 6);
   bitmap loaded_bmp = load("to_load.txt");
-  loaded_bmp = vertical_flip(loaded_bmp);
-  //loaded_bmp = horizontal_flip(loaded_bmp);
-  //my_bmp = clear(my_bmp, 30, 64, 20, 18);
-  //bitmap loaded_bmp = vertical_flip(my_bmp);
-  save(loaded_bmp, "saved_file.txt"); 
+  //my_bmp = vertical_flip(loaded_bmp);
+  //my_bmp = horizontal_flip(loaded_bmp);
+  my_bmp = clear(my_bmp, 30, 64, 20, 18);
+  my_bmp = blur2(my_bmp);
+  bitmap blended_bmp = blend(my_bmp, loaded_bmp, 128);
+  print(blended_bmp);
+  save(my_bmp, "saved_file.txt"); 
 
   return 0;
 }
 
+// TODO: Copy constructor for deep copy in blur
+// TODO: Assignment operator
+// TODO: Delete image and test with valgrind
 
-//TODO: Why won't it print line 88 WHYNOT
-//TODO: Seg faults for horizontal and vertical flips
-//TODO: Get it to save values in save
+// TODO: all todos
+// TODO: Confirm blur
+// TODO: Confirm blend
+
+// TODO: Use real images
+// TODO: Have load get dimensions from actual images
 
