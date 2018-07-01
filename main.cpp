@@ -81,14 +81,39 @@ bitmap::bitmap(const bitmap& other) {  // No dimensions because other is already
 bitmap& bitmap::operator=(const bitmap& other) { 
   printf("Inside assignment operator\n");
 
+  //TODO: Check if is same size. Implement destructor and copy constructor?
+
+  width = other.width;
+  height = other.height;
+
+  for(int rgba = 0; rgba < rgba_vals; rgba++) {
+    for(int x = 0; x < width; x++) {
+      for(int y = 0; y < height; y++) { 
+        data[rgba][x][y] = other.data[rgba][x][y];  // Assign RGBA values to zero
+      } 
+    }
+  }
 }
 
 
 // (4) destructor
 bitmap::~bitmap() { 
   printf("Inside destructor\n");
+  
+  for(int rgba = 0; rgba < rgba_vals; rgba++) {
+    
+    for(int x = 0; x < width; x++) {
+      free(data[rgba][x]);    
+    }
+
+    free(data[rgba]);
+  }
+  
+  //TODO
+  free(data);
+  //free(width);
+  //free(height);
 }
-//TODO: This and others?
 
 // (5) creates an empty (ie, completely black and opaque) image. Note that black 
 //and opaque implies an RGBA value of (0,0,0,0). Returns true if the bitmap was 
@@ -277,13 +302,13 @@ bitmap vertical_flip(bitmap &bmp) {
 bitmap blur(bitmap &bmp) { 
   printf("Inside blur\n");
 
+  bitmap temp_bmp = bmp;
+
   uint32_t h = bmp.height;
   uint32_t w = bmp.width;
   uint8_t neighbor_pixel;
   //TODO: Just have temp_bmp and have new values go over to that one. Deep copy
   // it over at end to bmp that gets returned
-  bitmap temp_bmp = create(w, h); // Temp image upon which to write
-  temp_bmp = bmp; // To get initial edges  // TODO: Remove later
   // TODO: Borders
 
   // All but borders
@@ -302,67 +327,30 @@ bitmap blur(bitmap &bmp) {
   }
   //printf("%d", temp_bmp.data[0][3][3]);
 
+  printf("Marker\n");
   bmp = temp_bmp; // Deep copy using copy constructor
-  // TODO: clear memory of temp_bmp
-  //TODO: return bmp, not temp_bmp
   return bmp; 
 }
-
-bitmap blur2(bitmap &blur_bmp) { 
-  printf("Inside blur\n");
-
-  uint32_t h = blur_bmp.height;
-  uint32_t w = blur_bmp.width;
-  uint8_t neighbor_sum;
-  //TODO: Just have temp_bmp and have new values go over to that one. Deep copy
-  // it over at end to bmp that gets returned
-  bitmap temp_bmp = create(w, h); // Temp image upon which to write
-  temp_bmp = blur_bmp; // To get initial edges  // TODO: Remove later
-  //printf("%d", temp_bmp.data[0][3][3]);
-  // TODO: Borders
-
-  // All but borders
-  for(int rgba = 0; rgba < rgba_vals; rgba++) {
-    for(int x = 1; x < w - 1; x++) { // TODO: confirm -1 
-      for(int y = 1; y < h - 1; y++) {
-
-//        printf("%d\n", temp_bmp.data[rgba][x][y]);
-        neighbor_sum = temp_bmp.data[rgba][x-1][y+1] + temp_bmp.data[rgba][x][y+1] +
-               temp_bmp.data[rgba][x+1][y+1] + temp_bmp.data[rgba][x-1][y] +
-               temp_bmp.data[rgba][x][y] + temp_bmp.data[rgba][x][y+1] + 
-               temp_bmp.data[rgba][x-1][y-1] + temp_bmp.data[rgba][x][y-1] +
-               temp_bmp.data[rgba][x-1][y-1];
-//        printf("%d\n", neighbor_sum);
-        blur_bmp.data[rgba][x][y] = neighbor_sum / 9;
-      }
-    }
-  }
-
-  // TODO: clear memory of temp_bmp
-  //TODO: return bmp, not temp_bmp
-  return blur_bmp; 
-}
-
 
 // (12; bonus) blends a given image with the current image at the specified 
 // transparency level. For simplicity, you can assume the two input images will
 //  have the same height and width. You'll need to perform some calculations to
 //  determine the final color at each pixel position.
 bitmap blend(const bitmap &orig_bmp, const bitmap& other_bmp, uint8_t transparency) { 
-  printf("Inside blend");
+  printf("Inside blend\n");
 
   //TODO: Check the two are same dimensions
   uint32_t h = orig_bmp.height;
   uint32_t w = orig_bmp.width;
-  uint8_t percentage = transparency / 256;
+  float percentage = transparency / (float) 256;
 
   bitmap blend_bmp = create(w, h);  
 
   for(int rgba = 0; rgba < rgba_vals; rgba++) {
     for(int x = 0; x < w; x++) {
       for(int y = 0; y < h; y++) {
-        blend_bmp.data[rgba][x][y] = (orig_bmp.data[rgba][x][y]*percentage) + 
-                                (other_bmp.data[rgba][x][y]*(100-percentage));
+        blend_bmp.data[rgba][x][y] = (int) (orig_bmp.data[rgba][x][y]*percentage) + 
+                                (other_bmp.data[rgba][x][y]*(1-percentage));
       }
     }
   }
@@ -377,13 +365,15 @@ void print(bitmap &bmp) {
   uint32_t h = bmp.height;
   uint32_t w = bmp.width;
 
+  printf("\n");
   for(int rgba = 0; rgba < rgba_vals; rgba++) {
     for(int x = 0; x < w; x++) { 
       for(int y = 0; y < h; y++) {
         printf("%d ", bmp.data[rgba][x][y]);
       }
-      printf("\n");
+      printf("\n"); // Print new line at end of row
     }
+    printf("\n"); // Print extra space between matrices
   }
 }
 
@@ -393,27 +383,27 @@ int main(int argc, char** argv) {
 
   // instantiate a copy of the image object type
   //image img;
-  bitmap my_bmp = create(5, 6);
-  bitmap loaded_bmp = load("to_load.txt");
+  bitmap zeros_bmp = create(5, 6);
+  bitmap ones_bmp = clear(zeros_bmp, 1, 1, 1, 1);
+  bitmap deciles_bmp = clear(zeros_bmp, 10, 20, 30, 40);
+  bitmap edge_deciles_bmp = load("edges.txt");
+
   //my_bmp = vertical_flip(loaded_bmp);
   //my_bmp = horizontal_flip(loaded_bmp);
-  my_bmp = clear(my_bmp, 30, 64, 20, 18);
-  my_bmp = blur2(my_bmp);
-  bitmap blended_bmp = blend(my_bmp, loaded_bmp, 128);
+
+  //bitmap blur_bmp = blur(edge_deciles_bmp);
+  bitmap blended_bmp = blend(ones_bmp, deciles_bmp, 128);
   print(blended_bmp);
-  save(my_bmp, "saved_file.txt"); 
+  //save(deciles_bmp, "deciles.txt"); 
 
   return 0;
 }
 
-// TODO: Copy constructor for deep copy in blur
-// TODO: Assignment operator
-// TODO: Delete image and test with valgrind
-
 // TODO: all todos
-// TODO: Confirm blur
-// TODO: Confirm blend
 
 // TODO: Use real images
 // TODO: Have load get dimensions from actual images
+
+// TODO: What other functions?
+// TODO: Have a GUI?
 
