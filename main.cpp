@@ -147,7 +147,7 @@ bitmap load(const std::string& filename) {
   printf("Finished with rows\n");
 
   // Now get number of columns
-  int col_count;
+  int col_count = 0;
   rewind(fp); //Reset fp to beginning
   while((c = fgetc(fp)) != '\n') {
     if(c == ' ') {
@@ -232,7 +232,7 @@ bitmap clear(bitmap &bmp, uint8_t r , uint8_t g, uint8_t b, uint8_t a) {
     }
   } 
   return bmp;
- }
+}
 
 
 // (9) flips the image horizontally, identical to the corresponding Photoshop 
@@ -377,23 +377,88 @@ void print(bitmap &bmp) {
   }
 }
 
+bitmap load_bmp(const std::string& filename) { 
+  printf("Inside load_bmp\n");
+
+  //char byte_buffer; // Read one byte at a time
+  int datum;  // Single data piece to be fed into matrix piecewise
+  int width;  // Int for image width
+  int height;  // Int for image height
+  int data_offset;
+  int data_size;  // Int containing size of data
+  // TODO(rorgan): Use: int32_t data_size; unsigned
+
+  // Open the file
+  FILE *fp;
+  fp = fopen(filename.c_str(), "r"); // .c_str() turns std::str into c style char*
+
+  // Read in location of width and height and save values
+  fseek(fp, 18, SEEK_SET); // Moves position of fp
+  fread(&width, sizeof(int), 1, fp);
+  fseek(fp, 22, SEEK_SET); // Moves position of fp // TODO: Pointer will automatically be here
+  fread(&height, sizeof(int), 1, fp);
+  
+  // Make bitmap image based on these dimensions
+  bitmap new_bmp = create(width, height);
+
+  // Read in location of start of data
+  fseek(fp, 10, SEEK_SET); // Moves position of fp
+  fread(&data_offset, sizeof(int), 1, fp);
+
+  // Read in size of data 
+  fseek(fp, 2, SEEK_SET); // Moves position of fp
+  fread(&data_size, sizeof(4), 1, fp);
+
+  // TODO: Move fp to location of data
+  //char data_buffer[atoi(data_size)];
+  printf("%d\n", data_offset);
+  int val = fseek(fp, data_offset, SEEK_SET);  // fseek returns the current offset 
+  printf("%d\n", val);                                                                                 // ***************************
+  //fread(data_buffer, atoi(data_size), 1, fp);
+  
+  // TODO: Not have to read it all in buffer in first place
+
+  // TODO: Read in data from buffer store it using dimensions and for loop
+  int row_count = new_bmp.height;
+  int col_count = new_bmp.width;
+  for(int rgba = 0; rgba < rgba_vals; rgba++) {
+    for(int x = 0; x < row_count; x++) {
+      for(int y = 0; y < col_count; y++) {
+//       fread(byte_buffer, 1, 1, fp);
+//       printf("%s\n", byte_buffer);                                                                 // ***************************
+//       new_bmp.data[rgba][x][y] = atof(byte_buffer);  // Assign RGBA values 
+        fread(&datum, 4, 1, fp);
+        printf("%d\n", datum);
+        new_bmp.data[rgba][x][y] = (float) datum;
+      }
+    } 
+  }
+
+  fclose(fp);
+
+  return new_bmp;
+}
 
 // executive entrypoint
 int main(int argc, char** argv) {
 
   // instantiate a copy of the image object type
   //image img;
-  bitmap zeros_bmp = create(5, 6);
-  bitmap ones_bmp = clear(zeros_bmp, 1, 1, 1, 1);
-  bitmap deciles_bmp = clear(zeros_bmp, 10, 20, 30, 40);
-  bitmap edge_deciles_bmp = load("edges.txt");
+//  bitmap zeros_bmp = create(5, 6);
+//  bitmap ones_bmp = clear(zeros_bmp, 1, 1, 1, 1);
+//  bitmap deciles_bmp = clear(zeros_bmp, 10, 20, 30, 40);
+//  bitmap edge_deciles_bmp = load("edges.txt");
 
   //my_bmp = vertical_flip(loaded_bmp);
   //my_bmp = horizontal_flip(loaded_bmp);
 
+  bitmap loaded_bmp = load_bmp("picture.bmp");
+  print(loaded_bmp);
+//  save(loaded_bmp, "saved_picture.bmp");
+
   //bitmap blur_bmp = blur(edge_deciles_bmp);
-  bitmap blended_bmp = blend(ones_bmp, deciles_bmp, 128);
-  print(blended_bmp);
+//  bitmap blended_bmp = blend(ones_bmp, deciles_bmp, 128);
+//  print(blended_bmp);
   //save(deciles_bmp, "deciles.txt"); 
 
   return 0;
@@ -404,6 +469,6 @@ int main(int argc, char** argv) {
 // TODO: Use real images
 // TODO: Have load get dimensions from actual images
 
-// TODO: What other functions?
+// TODO: What other functions? set_opacity_percentage()
 // TODO: Have a GUI?
 
