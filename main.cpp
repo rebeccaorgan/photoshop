@@ -9,27 +9,57 @@
 // other two dimensions
 
 int rgba_vals = 4; // TODO: Okay to have global?
+int rgb_vals = 3;  
 
-class bitmap{
+// Header
+struct HeaderStruct{
+  uint16_t identifier; // Magic identifier for BMP and DIB file
+  uint32_t data_size;  // Int containing size of data
+  uint16_t reserved1; // Value depends on app creating image
+  uint16_t reserved2; // Value depends on app creating image
+  uint32_t data_offset;  // In bytes; Where image data starts
+};
+typedef HeaderStruct Header;
+
+// Info Header
+struct InfoHeaderStruct{
+  uint32_t header_size; // In bytes
+  int32_t width;  // Int for image width
+  int32_t height;  // Int for image height
+  uint16_t planes; // Number of color planes
+  uint16_t datum_size; // bits per pixel
+  uint32_t compression; // Compression type
+  uint32_t image_size; // In bytes
+  int32_t x_res;
+  int32_t y_res;
+  uint32_t n_colors; // Number of colors
+  uint32_t important_colors;
+};
+typedef InfoHeaderStruct InfoHeader;
+
+
+class Bitmap{
   public:
-    bitmap(uint32_t w, uint32_t h);
-    bitmap(const bitmap& other);
-    bitmap& operator=(const bitmap& other);
-    ~bitmap();
+    Bitmap(uint32_t w, uint32_t h);
+    Bitmap(const Bitmap& other);
+    Bitmap& operator=(const Bitmap& other);
+    ~Bitmap();
 
     uint8_t*** data;
     uint32_t width;
     uint32_t height;
+
 
   private:
 };
 
 // (1)  default constructor, creates a 1x1 image which is completely black and 
 // opaque. Note that black and opaque implies an RGBA value of (0,0,0,0)
- bitmap::bitmap(uint32_t w, uint32_t h) {
+Bitmap::Bitmap(uint32_t w, uint32_t h) {
   printf("Inside default constructor\n");
 
   // Saving dimensions as data members in the class
+  // Copy over other variables besides data
   width = w; 
   height = h;
 
@@ -54,7 +84,7 @@ class bitmap{
 // (2) copy constructor.
 // Deep copy. 
 // Want "this" to be identical to other
-bitmap::bitmap(const bitmap& other) {  // No dimensions because other is already created 
+Bitmap::Bitmap(const Bitmap& other) {  // No dimensions because other is already created 
   printf("Inside copy constructor\n");
 
   width = other.width;
@@ -78,11 +108,12 @@ bitmap::bitmap(const bitmap& other) {  // No dimensions because other is already
 }
 
 // (3) assignment operator
-bitmap& bitmap::operator=(const bitmap& other) { 
+Bitmap& Bitmap::operator=(const Bitmap& other) { 
   printf("Inside assignment operator\n");
 
   //TODO: Check if is same size. Implement destructor and copy constructor?
 
+  // Copy over other variables besides data
   width = other.width;
   height = other.height;
 
@@ -97,7 +128,7 @@ bitmap& bitmap::operator=(const bitmap& other) {
 
 
 // (4) destructor
-bitmap::~bitmap() { 
+Bitmap::~Bitmap() { 
   printf("Inside destructor\n");
   
   for(int rgba = 0; rgba < rgba_vals; rgba++) {
@@ -116,19 +147,19 @@ bitmap::~bitmap() {
 }
 
 // (5) creates an empty (ie, completely black and opaque) image. Note that black 
-//and opaque implies an RGBA value of (0,0,0,0). Returns true if the bitmap was 
+//and opaque implies an RGBA value of (0,0,0,0). Returns true if the Bitmap was 
 //created and false if the creation fails (eg, due to memory allocation failure).
-bitmap create(uint32_t width, uint32_t height) {
+Bitmap create(uint32_t width, uint32_t height) {
   printf("Inside create\n");
-  bitmap bmp(width, height); // Call constructor
+  Bitmap bmp(width, height); // Call constructor
 
   // TODO: Bool based on memory allocation failure and stuff
   return bmp;
  }
 
-// (6) loads a bitmap into the object. Returns true if the bitmap was
+// (6) loads a Bitmap into the object. Returns true if the bitmap was
 //  successfully loaded and false otherwise.
-bitmap load(const std::string& filename) { 
+Bitmap load(const std::string& filename) { 
   printf("Inside load()\n");
 
   FILE *fp;
@@ -159,7 +190,7 @@ bitmap load(const std::string& filename) {
   uint32_t w = col_count;
 
   // Create bitmap
-  bitmap bmp = create(h, w);
+  Bitmap bmp = create(h, w);
 
   // Test read the buffer
 /*  rewind(fp);
@@ -187,9 +218,9 @@ bitmap load(const std::string& filename) {
 
 }
 
-// (7) saves the bitmap into a bitmap file. Returns true if the bitmap was
+// (7) saves the Bitmap into a bitmap file. Returns true if the bitmap was
 //  successfully written to disk and false otherwise.
-bool save(bitmap &bmp, const std::string& filename) {  // TODO: Why signature like this?
+bool save(Bitmap &bmp, const std::string& filename) {  // TODO: Why signature like this?
   printf("Inside save\n");
   //printf("%d", bmp.data[0][0][0]); // TODO: WHYNOT
 
@@ -211,11 +242,11 @@ bool save(bitmap &bmp, const std::string& filename) {  // TODO: Why signature li
 }
 
 
-// (8) clears every pixel in the bitmap image to the given color.
-bitmap clear(bitmap &bmp, uint8_t r , uint8_t g, uint8_t b, uint8_t a) {
+// (8) clears every pixel in the Bitmap image to the given color.
+Bitmap clear(Bitmap &bmp, uint8_t r , uint8_t g, uint8_t b, uint8_t a) {
   printf("Inside clear\n");
 
-  // Store the rgba parameters in an array in same order as that in bitmap data
+  // Store the rgba parameters in an array in same order as that in Bitmap data
   uint8_t rgba_array[4];
   rgba_array[0] = r;
   rgba_array[1] = g;
@@ -237,7 +268,7 @@ bitmap clear(bitmap &bmp, uint8_t r , uint8_t g, uint8_t b, uint8_t a) {
 
 // (9) flips the image horizontally, identical to the corresponding Photoshop 
 // operation.
-bitmap horizontal_flip(bitmap &bmp) { 
+Bitmap horizontal_flip(Bitmap &bmp) { 
   printf("Inside horizontal_flip()\n");
 
   uint8_t temp; // rgba value
@@ -266,11 +297,10 @@ bitmap horizontal_flip(bitmap &bmp) {
 
 // (10) flips the image vertically, identical to the corresponding Photoshop 
 // operation.
-bitmap vertical_flip(bitmap &bmp) {
+Bitmap vertical_flip(Bitmap &bmp) {
   printf("Inside vertical_flip()\n");
 
   uint8_t temp; // rgba value
-  uint32_t h = bmp.height;
   uint32_t w = bmp.width;
   int x_cap; // halfway mark; stopping point for why in inner for loop
   if(w % 2) { // height is odd
@@ -299,10 +329,10 @@ bitmap vertical_flip(bitmap &bmp) {
 //  bottom left, bottom middle and bottom right). You probably cannot operate 
 //in-situ on the current image and you'll need to create a new temporary image 
 //to write to.
-bitmap blur(bitmap &bmp) { 
+Bitmap blur(Bitmap &bmp) { 
   printf("Inside blur\n");
 
-  bitmap temp_bmp = bmp;
+  Bitmap temp_bmp = bmp;
 
   uint32_t h = bmp.height;
   uint32_t w = bmp.width;
@@ -336,7 +366,7 @@ bitmap blur(bitmap &bmp) {
 // transparency level. For simplicity, you can assume the two input images will
 //  have the same height and width. You'll need to perform some calculations to
 //  determine the final color at each pixel position.
-bitmap blend(const bitmap &orig_bmp, const bitmap& other_bmp, uint8_t transparency) { 
+Bitmap blend(const Bitmap &orig_bmp, const Bitmap& other_bmp, uint8_t transparency) { 
   printf("Inside blend\n");
 
   //TODO: Check the two are same dimensions
@@ -344,7 +374,7 @@ bitmap blend(const bitmap &orig_bmp, const bitmap& other_bmp, uint8_t transparen
   uint32_t w = orig_bmp.width;
   float percentage = transparency / (float) 256;
 
-  bitmap blend_bmp = create(w, h);  
+  Bitmap blend_bmp = create(w, h);  
 
   for(int rgba = 0; rgba < rgba_vals; rgba++) {
     for(int x = 0; x < w; x++) {
@@ -359,7 +389,7 @@ bitmap blend(const bitmap &orig_bmp, const bitmap& other_bmp, uint8_t transparen
 }
 
 // (13) prints out the matrix values of an image
-void print(bitmap &bmp) { 
+void print(Bitmap &bmp) { 
   printf("Inside print\n");
   
   uint32_t h = bmp.height;
@@ -377,63 +407,82 @@ void print(bitmap &bmp) {
   }
 }
 
-bitmap load_bmp(const std::string& filename) { 
+// Then assess them in a meaningful order
+Bitmap load_bmp(const std::string& filename) { 
   printf("Inside load_bmp\n");
 
-  //char byte_buffer; // Read one byte at a time
-  int datum;  // Single data piece to be fed into matrix piecewise
-  int width;  // Int for image width
-  int height;  // Int for image height
-  int data_offset;
-  int data_size;  // Int containing size of data
-  // TODO(rorgan): Use: int32_t data_size; unsigned
+  // Instantiate an object of types both Header and InfoHeader
+  Header header;
+  InfoHeader info_header;
+  
+  // Other
+  uint8_t datum;  // Single data piece to be fed into matrix piecewise
 
   // Open the file
   FILE *fp;
   fp = fopen(filename.c_str(), "r"); // .c_str() turns std::str into c style char*
 
-  // Read in location of width and height and save values
-  fseek(fp, 18, SEEK_SET); // Moves position of fp
-  fread(&width, sizeof(int), 1, fp);
-  fseek(fp, 22, SEEK_SET); // Moves position of fp // TODO: Pointer will automatically be here
-  fread(&height, sizeof(int), 1, fp);
+  // Read in all header values 
+  fread(&header.identifier, sizeof(header.identifier), 1, fp);
+  fread(&header.data_size, sizeof(header.data_size), 1, fp);
+  fread(&header.reserved1, sizeof(header.reserved1), 1, fp);
+  fread(&header.reserved2, sizeof(header.reserved2), 1, fp);
+  fread(&header.data_offset, sizeof(header.data_offset), 1, fp);
+  fread(&info_header.header_size, sizeof(info_header.header_size), 1, fp);
+  fread(&info_header.width,sizeof(info_header.width), 1, fp);
+  fread(&info_header.height, sizeof(info_header.height), 1, fp);
+  fread(&info_header.planes, sizeof(info_header.planes), 1, fp);
+  fread(&info_header.datum_size, sizeof(info_header.datum_size), 1, fp);
+  fread(&info_header.compression, sizeof(info_header.compression), 1, fp);
+  fread(&info_header.image_size, sizeof(info_header.image_size), 1, fp);
+  fread(&info_header.x_res, sizeof(info_header.x_res), 1, fp);
+  fread(&info_header.y_res, sizeof(info_header.y_res), 1, fp);
+  fread(&info_header.n_colors, sizeof(info_header.n_colors), 1, fp);
+  fread(&info_header.important_colors, sizeof(info_header.important_colors), 1, fp);
+
+  // Make Bitmap image based on these dimensions
+  Bitmap new_bmp = create(info_header.width, info_header.height);
   
-  // Make bitmap image based on these dimensions
-  bitmap new_bmp = create(width, height);
+  // TODO: Switch statement. Get error for redefining datum.
+  // Now you know bits per pixel, can create individual pixel value (datum) to 
+  // be extracted from image and fed into matrix piecemeal. According to 
+  // wikipedia. Typical values are 1, 4, 8, 16, 24, and 32. Also, 
+  // rgba_cap determines how many channels to look for based on size of pixel
+  // datum (how many bits per pixel)
+  int rgba_cap;
+  if(info_header.datum_size == 8) { // Assuming 8 bit indexed color, not grayscale
+    uint8_t datum;
+    rgba_cap = 3;
+  }
+  else if(info_header.datum_size == 24) {
+    uint32_t datum;
+    rgba_cap = 3;
+  }
+  else if(info_header.datum_size == 32) {
+    uint32_t datum;
+    rgba_cap = 4;
+  }
 
-  // Read in location of start of data
-  fseek(fp, 10, SEEK_SET); // Moves position of fp
-  fread(&data_offset, sizeof(int), 1, fp);
-
-  // Read in size of data 
-  fseek(fp, 2, SEEK_SET); // Moves position of fp
-  fread(&data_size, sizeof(4), 1, fp);
-
-  // TODO: Move fp to location of data
-  //char data_buffer[atoi(data_size)];
-  printf("%d\n", data_offset);
-  int val = fseek(fp, data_offset, SEEK_SET);  // fseek returns the current offset 
-  printf("%d\n", val);                                                                                 // ***************************
-  //fread(data_buffer, atoi(data_size), 1, fp);
-  
-  // TODO: Not have to read it all in buffer in first place
-
-  // TODO: Read in data from buffer store it using dimensions and for loop
+  // Go to start of data and one by one store to matrix
+  fseek(fp, header.data_offset, SEEK_SET);  // fseek returns the current offset 
   int row_count = new_bmp.height;
   int col_count = new_bmp.width;
-  for(int rgba = 0; rgba < rgba_vals; rgba++) {
-    for(int x = 0; x < row_count; x++) {
-      for(int y = 0; y < col_count; y++) {
-//       fread(byte_buffer, 1, 1, fp);
-//       printf("%s\n", byte_buffer);                                                                 // ***************************
-//       new_bmp.data[rgba][x][y] = atof(byte_buffer);  // Assign RGBA values 
-        fread(&datum, 4, 1, fp);
-        printf("%d\n", datum);
+  for(int x = 0; x < row_count; x++) {
+    for(int y = 0; y < col_count; y++) {
+      for(int rgba = 0; rgba < rgba_cap; rgba++) {  // alpha value is 0 here
+//        printf("Location within pointer: %ld\n", ftell(fp));
+        fread(&datum, 1, 1, fp);  // div by 8 to convert to bytes, by 4 for rgba component
+//        printf("%d\n", datum);
         new_bmp.data[rgba][x][y] = (float) datum;
       }
     } 
   }
-
+  
+  // Print some relevant stats
+  printf("----Bits per pixel (datum_size): %d\n", info_header.datum_size);
+  printf("----Measured data size: %d\n", ftell(fp)-header.data_offset);
+  printf("----Width: %d\n", info_header.width);
+  printf("----Height: %d\n", info_header.height);
   fclose(fp);
 
   return new_bmp;
@@ -444,20 +493,20 @@ int main(int argc, char** argv) {
 
   // instantiate a copy of the image object type
   //image img;
-//  bitmap zeros_bmp = create(5, 6);
-//  bitmap ones_bmp = clear(zeros_bmp, 1, 1, 1, 1);
-//  bitmap deciles_bmp = clear(zeros_bmp, 10, 20, 30, 40);
-//  bitmap edge_deciles_bmp = load("edges.txt");
+//  Bitmap zeros_bmp = create(5, 6);
+//  Bitmap ones_bmp = clear(zeros_bmp, 1, 1, 1, 1);
+//  Bitmap deciles_bmp = clear(zeros_bmp, 10, 20, 30, 40);
+//  Bitmap edge_deciles_bmp = load("edges.txt");
 
   //my_bmp = vertical_flip(loaded_bmp);
   //my_bmp = horizontal_flip(loaded_bmp);
 
-  bitmap loaded_bmp = load_bmp("picture.bmp");
-  print(loaded_bmp);
+  Bitmap loaded_bmp = load_bmp("picture.bmp");
+//  print(loaded_bmp);
 //  save(loaded_bmp, "saved_picture.bmp");
 
-  //bitmap blur_bmp = blur(edge_deciles_bmp);
-//  bitmap blended_bmp = blend(ones_bmp, deciles_bmp, 128);
+  //Bitmap blur_bmp = blur(edge_deciles_bmp);
+//  Bitmap blended_bmp = blend(ones_bmp, deciles_bmp, 128);
 //  print(blended_bmp);
   //save(deciles_bmp, "deciles.txt"); 
 
