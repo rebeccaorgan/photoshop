@@ -128,7 +128,7 @@ Bitmap& Bitmap::operator=(const Bitmap& other) {
   for(int rgba = 0; rgba < rgba_vals; rgba++) {
     for(int x = 0; x < width; x++) {
       for(int y = 0; y < height; y++) { 
-        data[rgba][x][y] = other.data[rgba][x][y];  // Assign RGBA values to zero
+        data[rgba][x][y] = other.data[rgba][x][y];  
       } 
     }
   }
@@ -164,116 +164,196 @@ Bitmap create(uint32_t width, uint32_t height, Header header, InfoHeader info_he
   // TODO: Bool based on memory allocation failure and stuff
   return bmp;
  }
-/*
-// (6) loads a Bitmap into the object. Returns true if the bitmap was
-//  successfully loaded and false otherwise.
-Bitmap load(const std::string& filename) { 
-  printf("Inside load()\n");
 
+// (6) Lodad bmp
+Bitmap load_bmp(const std::string& filename) { 
+  printf("Inside load_bmp\n");
+
+  // Instantiate an object of types both Header and InfoHeader
+  Header header;
+  InfoHeader info_header;
+
+  // Open the file
   FILE *fp;
-  fp = fopen(filename.c_str(), "r+"); // .c_str() turns std::str into c style char*
+  fp = fopen(filename.c_str(), "r"); // .c_str() turns std::str into c style char*
 
-  // Get dimensions to know how big to create image
-  // TODO: pull dimensions from metadata instead
-  // First get number of rows
-  int row_count = 0;
-  int c; // To store a character read from the file. Has to be int for EOF
-  while((c = fgetc(fp)) != EOF) {
-    if(c == '\n') {  // Check if new line
-      row_count++;
-    }
+  // Read in all header values 
+  fread(&header.identifier, sizeof(header.identifier), 1, fp);
+  fread(&header.data_size, sizeof(header.data_size), 1, fp);
+  fread(&header.reserved1, sizeof(header.reserved1), 1, fp);
+  fread(&header.reserved2, sizeof(header.reserved2), 1, fp);
+  fread(&header.data_offset, sizeof(header.data_offset), 1, fp);
+  fread(&info_header.header_size, sizeof(info_header.header_size), 1, fp);
+  fread(&info_header.width,sizeof(info_header.width), 1, fp);
+  fread(&info_header.height, sizeof(info_header.height), 1, fp);
+  fread(&info_header.planes, sizeof(info_header.planes), 1, fp);
+  fread(&info_header.datum_size, sizeof(info_header.datum_size), 1, fp);
+  fread(&info_header.compression, sizeof(info_header.compression), 1, fp);
+  fread(&info_header.image_size, sizeof(info_header.image_size), 1, fp);
+  fread(&info_header.x_res, sizeof(info_header.x_res), 1, fp);
+  fread(&info_header.y_res, sizeof(info_header.y_res), 1, fp);
+  fread(&info_header.n_colors, sizeof(info_header.n_colors), 1, fp);
+  fread(&info_header.important_colors, sizeof(info_header.important_colors), 1, fp);
+
+  // TODO: Why are width and height so big when I loaded the picture, saved it, then loaded my saved picture?
+  printf("Data_size: %u, Data_offset: %u\n", header.data_size, header.data_offset);
+  printf("Width: %u, Height: %u\n", info_header.width, info_header.height);
+  
+  // Make Bitmap image based on these dimensions
+  Bitmap new_bmp = create(info_header.width, info_header.height, header, info_header);
+
+
+  // Assign Header and InfoHeader
+  
+  // TODO: Switch statement. Get error for redefining datum.
+  // Now you know bits per pixel, can create individual pixel value (datum) to 
+  // be extracted from image and fed into matrix piecemeal. According to 
+  // wikipedia. Typical values are 1, 4, 8, 16, 24, and 32. Also, 
+  // rgba_cap determines how many channels to look for based on size of pixel
+  // datum (how many bits per pixel)
+  int rgba_cap;
+  if(info_header.datum_size == 8) { // Assuming 8 bit indexed color, not grayscale
+  // 3 bits for red, 3 for green, 2 for blue
+    uint8_t datum;
+    rgba_cap = 1;
   }
-  printf("Finished with rows\n");
-
-  // Now get number of columns
-  int col_count = 0;
-  rewind(fp); //Reset fp to beginning
-  while((c = fgetc(fp)) != '\n') {
-    if(c == ' ') {
-      col_count++;
-    }
+  else if(info_header.datum_size == 24) {
+    uint32_t datum;
+    rgba_cap = 3;
   }
-  printf("Finished with cols\n");
-  uint32_t h = row_count / rgba_vals;
-  uint32_t w = col_count;
+  else if(info_header.datum_size == 32) {
+    uint32_t datum;
+    rgba_cap = 4;
+  }
 
-  // Create bitmap
-  Bitmap bmp = create(h, w);
+  // TODO: Is this redundant from above?
+  // Single data piece to be fed into matrix piecewise
+  uint8_t datum;  
 
-  // Test read the buffer
-  rewind(fp);
-  char buffer[512];
-  fread(buffer, 512, 1, fp);
-  printf("%s", buffer);
-
-  // Populate bitmap
-  rewind(fp);
-  char str[65536]; //TODO: Will need eed megabytes / gigabytes, right? 
-
-    for(int rgba = 0; rgba < rgba_vals; rgba++) {
-      for(int x = 0; x < h; x++) { // TODO: Why is height on outside, width on inside
-        for(int y = 0; y < w; y++) {
-
-          fscanf(fp, "%s", str);
-          float val = atof(str); //Convert char* to float
-          bmp.data[rgba][x][y] = val;  // Assign RGBA values 
-
-        }
+  // Go to start of data and one by one store to matrix
+  fseek(fp, header.data_offset, SEEK_SET);  // fseek returns the current offset 
+  int row_count = new_bmp.height;
+  int col_count = new_bmp.width;
+  // Scanning left to right, top to bottom (raster scanning)
+  for(int y = 0; y < row_count; y++) {
+    for(int x = 0; x < col_count; x++) {
+      for(int rgba = 0; rgba < rgba_cap; rgba++) {  // alpha value is 0 here
+//        printf("Location within pointer: %ld\n", ftell(fp));
+        fread(&datum, 1, 1, fp);  // div by 8 to convert to bytes, by 4 for rgba component
+//        printf("%d\n", datum);
+        new_bmp.data[rgba][x][y] = (float) datum;
       }
-    }
+    } 
+  }
+  
+  // Print some relevant stats
+  printf("----Bits per pixel (datum_size): %d\n", info_header.datum_size);
+  printf("----Measured data size: %d\n", ftell(fp)-header.data_offset);
+  printf("----Width: %d\n", info_header.width);
+  printf("----Height: %d\n", info_header.height);
   fclose(fp);
-  return bmp;
 
+  return new_bmp;
 }
-*/
 
 // (7) saves the Bitmap into a bitmap file. Returns true if the bitmap was
 //  successfully written to disk and false otherwise.
-bool save(Bitmap &bmp, const std::string& filename) {  // TODO: Why signature like this?
-  printf("Inside save\n");
-  //printf("%d", bmp.data[0][0][0]); // TODO: WHYNOT
+bool save_bmp(Bitmap &bmp, const std::string& filename) {  // TODO: Why signature like this?
+  printf("Inside save_bmp\n");
+
+  // Change data_offset to 54 because we're going to store data after headers
+  bmp.header.data_offset = 54;
+
+  Header header = bmp.header;
+  InfoHeader info_header = bmp.info_header;
+
 
   FILE *fp;
   fp = fopen(filename.c_str(), "w+"); // .c_str() turns std::str into c style char*
 
+  
 
-  // Write all values 
-  for(int rgba = 0; rgba < rgba_vals; rgba++) {
-    for(int x = 0; x < bmp.width; x++) {
-      for(int y = 0; y < bmp.height; y++) {
-        fprintf(fp, "%d ", bmp.data[rgba][x][y]);
+  // Write Header
+  fwrite(&header.identifier, sizeof(header.identifier), 1, fp);
+  fwrite(&header.data_size, sizeof(header.data_size), 1, fp);
+  fwrite(&header.reserved1, sizeof(header.reserved1), 1, fp);
+  fwrite(&header.reserved2, sizeof(header.reserved2), 1, fp);
+  fwrite(&header.data_offset, sizeof(header.data_offset), 1, fp);
+  // Write HeaderInfo
+  fwrite(&info_header.header_size, sizeof(info_header.header_size), 1, fp);
+  fwrite(&info_header.width, sizeof(info_header.width), 1, fp);
+  fwrite(&info_header.height, sizeof(info_header.height), 1, fp);
+  fwrite(&info_header.planes, sizeof(info_header.planes), 1, fp);
+  fwrite(&info_header.datum_size, sizeof(info_header.datum_size), 1, fp);
+  fwrite(&info_header.compression, sizeof(info_header.compression), 1, fp);
+  fwrite(&info_header.image_size, sizeof(info_header.image_size), 1, fp);
+  fwrite(&info_header.x_res, sizeof(info_header.x_res), 1, fp);
+  fwrite(&info_header.y_res, sizeof(info_header.y_res), 1, fp);
+  fwrite(&info_header.n_colors, sizeof(info_header.n_colors), 1, fp);
+  fwrite(&info_header.important_colors, sizeof(info_header.important_colors), 1, fp);
+
+  // TODO: Switch statement. Get error for redefining datum.
+  // Now you know bits per pixel, can create individual pixel value (datum) to 
+  // be extracted from image and fed into matrix piecemeal. According to 
+  // wikipedia. Typical values are 1, 4, 8, 16, 24, and 32. Also, 
+  // rgba_cap determines how many channels to look for based on size of pixel
+  // datum (how many bits per pixel)
+  int rgba_cap;
+  if(info_header.datum_size == 8) { // Assuming 8 bit indexed color, not grayscale
+    uint8_t datum;
+    rgba_cap = 3;
+  }
+  else if(info_header.datum_size == 24) {
+    uint32_t datum;
+    rgba_cap = 3;
+  }
+  else if(info_header.datum_size == 32) {
+    uint32_t datum;
+    rgba_cap = 4;
+  }
+
+  // TODO: Is this redundant from above?
+  // Single data piece to be fed into matrix piecewise
+  uint8_t datum;  
+
+  // Go to start of data and one by one store from matrix
+  fseek(fp, header.data_offset, SEEK_SET);  // Should already be here
+  int row_count = info_header.height;
+  int col_count = info_header.width;
+  // Order is raster scan, left to right, top to bottom
+  for(int y = 0; y < row_count; y++) {
+    for(int x = 0; x < col_count; x++) {
+      for(int rgba = 0; rgba < rgba_cap; rgba++) {  // alpha value is 0 here
+        fwrite(&bmp.data[rgba][x][y], sizeof(bmp.data[rgba][x][y]), 1, fp);
+        // fprintf(fp, "%d", bmp.data[rgba][x][y]);
       }
-    fprintf(fp, "\n"); // TODO:  New line at end of row
     }
-  } 
+  }
   fclose(fp);
-  return true; // TODO: Have this actually reflect success
 }
-
 
 // (8) clears every pixel in the Bitmap image to the given color.
 Bitmap clear(Bitmap &bmp, uint8_t r , uint8_t g, uint8_t b, uint8_t a) {
   printf("Inside clear\n");
 
   // Store the rgba parameters in an array in same order as that in Bitmap data
+  // Note: blue and red order is inverted to match bitmap file type
   uint8_t rgba_array[4];
-  rgba_array[0] = r;
+  rgba_array[0] = b;
   rgba_array[1] = g;
-  rgba_array[2] = b;
+  rgba_array[2] = r;
   rgba_array[3] = a;
 
-  
   // Assign all values 
-  for(int rgba = 0; rgba < rgba_vals; rgba++) {
+  for(int y = 0; y < bmp.height; y++) {
     for(int x = 0; x < bmp.width; x++) {
-      for(int y = 0; y < bmp.height; y++) {
+      for(int rgba = 0; rgba < rgba_vals; rgba++) {
         bmp.data[rgba][x][y] = rgba_array[rgba];
       }
     }
   } 
   return bmp;
 }
-
 
 // (9) flips the image horizontally, identical to the corresponding Photoshop 
 // operation.
@@ -283,21 +363,22 @@ Bitmap horizontal_flip(Bitmap &bmp) {
   uint8_t temp; // rgba value
   uint32_t w = bmp.width;
   uint32_t h = bmp.height;
-  int y_cap; // halfway mark; stopping point for why in inner for loop
-  if(h % 2) { // height is odd
-    y_cap = (h + 1) / 2;
+  int x_mid; 
+  if(w % 2) { // height is odd
+    x_mid = (w + 1) / 2;
   }
   else { // height is even
-    y_cap = h / 2;
+    x_mid = w / 2;
   }
 
   // Assign all values 
-  for(int rgba = 0; rgba < rgba_vals; rgba++) {
-    for(int x = 0; x < w; x++) {
-      for(int y = 0; y < y_cap; y++) {
+  for(int y = 0; y < h; y++) {
+    for(int x = 0; x <= x_mid; x++) {
+      for(int rgba = 0; rgba < rgba_vals; rgba++) {
         temp = bmp.data[rgba][x][y];
-        bmp.data[rgba][x][y] = bmp.data[rgba][x][h-1-y]; // h-1 because  offset 
-        bmp.data[rgba][x][h-1-y] = temp;
+        bmp.data[rgba][x][y] = bmp.data[rgba][w-1-x][y];
+        bmp.data[rgba][w-1-x][y] = temp;
+//        printf("Temp: %d, x: %d, oppoxite x: %d, y: %d\n", temp, x, w-1-x, y); 
       }
     }
   } 
@@ -311,21 +392,22 @@ Bitmap vertical_flip(Bitmap &bmp) {
 
   uint8_t temp; // rgba value
   uint32_t w = bmp.width;
-  int x_cap; // halfway mark; stopping point for why in inner for loop
-  if(w % 2) { // height is odd
-    x_cap = (w + 1) / 2;
+  uint32_t h = bmp.height;
+  int y_mid; // halfway mark; stopping point for why in inner for loop
+  if(h % 2) { // height is odd
+    y_mid = (h + 1) / 2;
   }
   else { // height is even
-    x_cap = w / 2;
+    y_mid = h / 2;
   }
 
   // Assign all values 
-  for(int rgba = 0; rgba < rgba_vals; rgba++) {
-    for(int x = 0; x < x_cap; x++) {
-      for(int y = 0; y < w; y++) {
+  for(int y = 0; y <= y_mid; y++) {
+    for(int x = 0; x < w; x++) {
+      for(int rgba = 0; rgba < rgba_vals; rgba++) {
         temp = bmp.data[rgba][x][y];
-        bmp.data[rgba][x][y] = bmp.data[rgba][w-1-x][y]; // w-1 
-        bmp.data[rgba][w-1-x][y] = temp;
+        bmp.data[rgba][x][y] = bmp.data[rgba][x][h-1-y]; 
+        bmp.data[rgba][x][h-1-y] = temp;
       }
     }
   } 
@@ -345,22 +427,22 @@ Bitmap blur(Bitmap &bmp) {
 
   uint32_t h = bmp.height;
   uint32_t w = bmp.width;
-  uint8_t neighbor_pixel;
+  uint8_t neighbor_pixel_sum;
   //TODO: Just have temp_bmp and have new values go over to that one. Deep copy
   // it over at end to bmp that gets returned
   // TODO: Borders
 
   // All but borders
-  for(int rgba = 0; rgba < rgba_vals; rgba++) {
+  for(int y = 1; y < h - 1; y++) {
     for(int x = 1; x < w - 1; x++) { // TODO: confirm -1 
-      for(int y = 1; y < h - 1; y++) {
+      for(int rgba = 0; rgba < rgba_vals; rgba++) {
 
-        neighbor_pixel = bmp.data[rgba][x-1][y+1] + bmp.data[rgba][x][y+1] +
+        neighbor_pixel_sum = bmp.data[rgba][x-1][y+1] + bmp.data[rgba][x][y+1] +
                bmp.data[rgba][x+1][y+1] + bmp.data[rgba][x-1][y] +
                bmp.data[rgba][x][y] + bmp.data[rgba][x][y+1] + 
                bmp.data[rgba][x-1][y-1] + bmp.data[rgba][x][y-1] +
                bmp.data[rgba][x-1][y-1];
-        temp_bmp.data[rgba][x][y] = neighbor_pixel / 9;
+        temp_bmp.data[rgba][x][y] = 0; //neighbor_pixel_sum / 9;
       }
     }
   }
@@ -451,129 +533,7 @@ void print_header(Bitmap &bmp) {
          info_header.n_colors, info_header.important_colors);
 }
 
-// Then assess them in a meaningful order
-Bitmap load_bmp(const std::string& filename) { 
-  printf("Inside load_bmp\n");
 
-  // Instantiate an object of types both Header and InfoHeader
-  Header header;
-  InfoHeader info_header;
-
-  // Open the file
-  FILE *fp;
-  fp = fopen(filename.c_str(), "r"); // .c_str() turns std::str into c style char*
-
-  // Read in all header values 
-  fread(&header.identifier, sizeof(header.identifier), 1, fp);
-  fread(&header.data_size, sizeof(header.data_size), 1, fp);
-  fread(&header.reserved1, sizeof(header.reserved1), 1, fp);
-  fread(&header.reserved2, sizeof(header.reserved2), 1, fp);
-  fread(&header.data_offset, sizeof(header.data_offset), 1, fp);
-  fread(&info_header.header_size, sizeof(info_header.header_size), 1, fp);
-  fread(&info_header.width,sizeof(info_header.width), 1, fp);
-  fread(&info_header.height, sizeof(info_header.height), 1, fp);
-  fread(&info_header.planes, sizeof(info_header.planes), 1, fp);
-  fread(&info_header.datum_size, sizeof(info_header.datum_size), 1, fp);
-  fread(&info_header.compression, sizeof(info_header.compression), 1, fp);
-  fread(&info_header.image_size, sizeof(info_header.image_size), 1, fp);
-  fread(&info_header.x_res, sizeof(info_header.x_res), 1, fp);
-  fread(&info_header.y_res, sizeof(info_header.y_res), 1, fp);
-  fread(&info_header.n_colors, sizeof(info_header.n_colors), 1, fp);
-  fread(&info_header.important_colors, sizeof(info_header.important_colors), 1, fp);
-
-  // Make Bitmap image based on these dimensions
-  Bitmap new_bmp = create(info_header.width, info_header.height, header, info_header);
-
-
-  // Assign Header and InfoHeader
-  
-  // TODO: Switch statement. Get error for redefining datum.
-  // Now you know bits per pixel, can create individual pixel value (datum) to 
-  // be extracted from image and fed into matrix piecemeal. According to 
-  // wikipedia. Typical values are 1, 4, 8, 16, 24, and 32. Also, 
-  // rgba_cap determines how many channels to look for based on size of pixel
-  // datum (how many bits per pixel)
-  int rgba_cap;
-  if(info_header.datum_size == 8) { // Assuming 8 bit indexed color, not grayscale
-    uint8_t datum;
-    rgba_cap = 3;
-  }
-  else if(info_header.datum_size == 24) {
-    uint32_t datum;
-    rgba_cap = 3;
-  }
-  else if(info_header.datum_size == 32) {
-    uint32_t datum;
-    rgba_cap = 4;
-  }
-
-  // Single data piece to be fed into matrix piecewise
-  uint8_t datum;  
-
-  // Go to start of data and one by one store to matrix
-  fseek(fp, header.data_offset, SEEK_SET);  // fseek returns the current offset 
-  int row_count = new_bmp.height;
-  int col_count = new_bmp.width;
-  for(int x = 0; x < row_count; x++) {
-    for(int y = 0; y < col_count; y++) {
-      for(int rgba = 0; rgba < rgba_cap; rgba++) {  // alpha value is 0 here
-//        printf("Location within pointer: %ld\n", ftell(fp));
-        fread(&datum, 1, 1, fp);  // div by 8 to convert to bytes, by 4 for rgba component
-//        printf("%d\n", datum);
-        new_bmp.data[rgba][x][y] = (float) datum;
-      }
-    } 
-  }
-  
-  // Print some relevant stats
-  printf("----Bits per pixel (datum_size): %d\n", info_header.datum_size);
-  printf("----Measured data size: %d\n", ftell(fp)-header.data_offset);
-  printf("----Width: %d\n", info_header.width);
-  printf("----Height: %d\n", info_header.height);
-  fclose(fp);
-
-  return new_bmp;
-}
-
-
-bool save_bmp(Bitmap &bmp, const std::string& filename) {  // TODO: Why signature like this?
-  printf("Inside save_bmp\n");
-
-  // Change data_offset to 54 because we're going to store data after headers
-  bmp.header.data_offset = 54;
-
-  Header header = bmp.header;
-  InfoHeader info_header = bmp.info_header;
-
-
-  FILE *fp;
-  fp = fopen(filename.c_str(), "w+"); // .c_str() turns std::str into c style char*
-
-  // Write Header
-  fprintf(fp, "%u%u%u%u%u", 
-          header.identifier,
-          header.data_size,
-          header.reserved1,
-          header.reserved2,
-          header.data_offset);
-  // Write HeaderInfo
-  fprintf(fp, "%u%d%d%u%u%u%u%d%d%u%u", 
-          info_header.header_size,
-          info_header.width,
-          info_header.height,
-          info_header.planes,
-          info_header.compression,
-          info_header.image_size,
-          info_header.x_res,
-          info_header.y_res,
-          info_header.n_colors,
-          info_header.important_colors);
-
-  // TODO: Write data
-  // TODO: Have to figure out bits per pixel to figure out how / where to write data order
-  
-  fclose(fp);
-}
 // executive entrypoint
 int main(int argc, char** argv) {
 
@@ -587,8 +547,14 @@ int main(int argc, char** argv) {
   //my_bmp = vertical_flip(loaded_bmp);
   //my_bmp = horizontal_flip(loaded_bmp);
 
-  Bitmap loaded_bmp = load_bmp("picture.bmp");
+//  Bitmap loaded_bmp = load_bmp("picture.bmp");
+  Bitmap loaded_bmp = load_bmp("picture3.bmp");
   print_header(loaded_bmp);
+//  loaded_bmp = clear(loaded_bmp, 128, 0, 0, 0);
+//  loaded_bmp = vertical_flip(loaded_bmp);
+//  loaded_bmp = horizontal_flip(loaded_bmp);
+//  loaded_bmp = blur(loaded_bmp);
+//  printf("%d\n", loaded_bmp.data[2][1][1]);
   save_bmp(loaded_bmp, "saved_picture.bmp");
 
   //Bitmap blur_bmp = blur(edge_deciles_bmp);
@@ -601,10 +567,8 @@ int main(int argc, char** argv) {
 
 // TODO: all todos
 
-// TODO: Use real images
-// TODO: Have load get dimensions from actual images
-
 // TODO: What other functions? set_opacity_percentage()
 // TODO: Have a GUI?
 
-// TODO: Have function that prints out header
+// TODO: Load picture2.bmp and work with other bitsperpixel
+
