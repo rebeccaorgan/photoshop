@@ -427,7 +427,7 @@ Bitmap blur(Bitmap &bmp) {
 
   uint32_t h = bmp.height;
   uint32_t w = bmp.width;
-  uint8_t neighbor_pixel_sum;
+  uint32_t neighbor_pixel_sum;
   //TODO: Just have temp_bmp and have new values go over to that one. Deep copy
   // it over at end to bmp that gets returned
   // TODO: Borders
@@ -441,12 +441,11 @@ Bitmap blur(Bitmap &bmp) {
                bmp.data[rgba][x+1][y+1] + bmp.data[rgba][x-1][y] +
                bmp.data[rgba][x][y] + bmp.data[rgba][x][y+1] + 
                bmp.data[rgba][x-1][y-1] + bmp.data[rgba][x][y-1] +
-               bmp.data[rgba][x-1][y-1];
-        temp_bmp.data[rgba][x][y] = 0; //neighbor_pixel_sum / 9;
+               bmp.data[rgba][x+1][y-1];
+        temp_bmp.data[rgba][x][y] = neighbor_pixel_sum / 9;
       }
     }
   }
-  //printf("%d", temp_bmp.data[0][3][3]);
 
   printf("Marker\n");
   bmp = temp_bmp; // Deep copy using copy constructor
@@ -553,7 +552,7 @@ int main(int argc, char** argv) {
 //  loaded_bmp = clear(loaded_bmp, 128, 0, 0, 0);
 //  loaded_bmp = vertical_flip(loaded_bmp);
 //  loaded_bmp = horizontal_flip(loaded_bmp);
-//  loaded_bmp = blur(loaded_bmp);
+  loaded_bmp = blur(loaded_bmp);
 //  printf("%d\n", loaded_bmp.data[2][1][1]);
   save_bmp(loaded_bmp, "saved_picture.bmp");
 
