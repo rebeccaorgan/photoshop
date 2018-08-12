@@ -471,13 +471,36 @@ Bitmap blend(const Bitmap &orig_bmp, const Bitmap& other_bmp, uint8_t transparen
   for(int rgba = 0; rgba < rgba_vals; rgba++) {
     for(int x = 0; x < w; x++) {
       for(int y = 0; y < h; y++) {
-        blend_bmp.data[rgba][x][y] = (int) (orig_bmp.data[rgba][x][y]*percentage) + 
-                                (other_bmp.data[rgba][x][y]*(1-percentage));
+        blend_bmp.data[rgba][x][y] = (int) (orig_bmp.data[rgba][x][y]*(1-percentage)) + 
+                                (other_bmp.data[rgba][x][y]*percentage);
       }
     }
   }
   
   return blend_bmp;
+}
+
+Bitmap scale(const Bitmap &bmp, float magnitude) {
+
+  Bitmap new_bmp = create(bmp.width * magnitude, (bmp.height * magnitude), bmp.header, bmp.info_header);
+  
+  uint32_t h = bmp.height * magnitude;
+  uint32_t w = bmp.width * magnitude;
+  // Update header file
+  new_bmp.height = h;
+  new_bmp.width = w;
+  new_bmp.info_header.height = h;
+  new_bmp.info_header.width = w;
+
+  for(int rgba = 0; rgba < rgba_vals; rgba++) {
+    for(int x = 0; x < w; x++) { 
+      for(int y = 0; y < h; y++) {
+        new_bmp.data[rgba][x][y] = bmp.data[rgba][int(x/magnitude)][int(y/magnitude)];
+      }
+    }
+  }
+
+  return new_bmp;
 }
 
 // (13) prints out the matrix values of an image
@@ -546,15 +569,17 @@ int main(int argc, char** argv) {
   //my_bmp = vertical_flip(loaded_bmp);
   //my_bmp = horizontal_flip(loaded_bmp);
 
-//  Bitmap loaded_bmp = load_bmp("picture.bmp");
   Bitmap loaded_bmp = load_bmp("picture3.bmp");
-  print_header(loaded_bmp);
+//  Bitmap loaded_bmp = load_bmp("picture3.bmp");
+//  Bitmap loaded_bmp2 = load_bmp("picture.bmp");
+//  print_header(loaded_bmp);
 //  loaded_bmp = clear(loaded_bmp, 128, 0, 0, 0);
 //  loaded_bmp = vertical_flip(loaded_bmp);
 //  loaded_bmp = horizontal_flip(loaded_bmp);
-  loaded_bmp = blur(loaded_bmp);
-//  printf("%d\n", loaded_bmp.data[2][1][1]);
-  save_bmp(loaded_bmp, "saved_picture.bmp");
+//  loaded_bmp = blur(loaded_bmp);
+//  loaded_bmp = blend(loaded_bmp1, loaded_bmp2, 128);
+    Bitmap scaled_bmp = scale(loaded_bmp, 10);
+  save_bmp(scaled_bmp, "saved_picture.bmp");
 
   //Bitmap blur_bmp = blur(edge_deciles_bmp);
 //  Bitmap blended_bmp = blend(ones_bmp, deciles_bmp, 128);
@@ -567,6 +592,10 @@ int main(int argc, char** argv) {
 // TODO: all todos
 
 // TODO: What other functions? set_opacity_percentage()
+// TODO: Have blend function blend the boundaries / edges
+// TODO: histogram
+// TODO: edge detection
+
 // TODO: Have a GUI?
 
 // TODO: Load picture2.bmp and work with other bitsperpixel
